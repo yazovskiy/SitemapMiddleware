@@ -71,7 +71,10 @@ namespace Yasl.Net.SiteMapMiddleware
                 ChangeFrequency = "daily",
                 Priority = 1.0
             });
-            var assembly = Assembly.GetExecutingAssembly();
+            var assembly = Assembly.GetEntryAssembly();
+
+            if (assembly == null)
+                return urls;
 
             var controllers = assembly.GetTypes()
                 .Where(type => typeof(Controller).IsAssignableFrom(type));
