@@ -21,6 +21,6 @@ jobs:
         - name: Pack
           run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output .
         - name: Push
-          run: dotnet nuget push $file --api-key $NUGET_APIKEY --source https://api.nuget.org/v3/index.json --skip-duplicate
+          run: dotnet nuget push Yasl.Net.SitemapMiddleware.${VERSION}.nupkg --api-key $NUGET_APIKEY --source https://api.nuget.org/v3/index.json --skip-duplicate
         env:
           NUGET_APIKEY: ${{ secrets.NUGET_APIKEY }}
