@@ -10,6 +10,7 @@
     <Authors>Sergey Yazovskiy</Authors>
     <Description>A middleware for generating sitemaps</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/yazovskiy/SitemapMiddleware</RepositoryUrl>
   </PropertyGroup>
 
