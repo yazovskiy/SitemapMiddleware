@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +28,11 @@ namespace Yasl.Net.SiteMapMiddleware
     public class SitemapMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly SitemapMiddlewareOptions _options;
+        private readonly Uri _rootUri;
         private readonly string _rootUrl;
+        private readonly string _sitemapPath;
+        private readonly string _robotsPath;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SitemapMiddleware"/> class.
@@ -36,9 +41,23 @@ namespace Yasl.Net.SiteMapMiddleware
         /// <param name="rootUrl">The root URL of the application.</param>
         /// 
         public SitemapMiddleware(RequestDelegate next, string rootUrl)
+            : this(next, new SitemapMiddlewareOptions { RootUrl = rootUrl })
         {
-            _next = next;
-            _rootUrl = rootUrl.TrimEnd('/');
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SitemapMiddleware"/> class.
+        /// </summary>
+        /// <param name="next">The next middleware in the request pipeline.</param>
+        /// <param name="options">Options for sitemap and robots.txt generation.</param>
+        public SitemapMiddleware(RequestDelegate next, SitemapMiddlewareOptions options)
+        {
+            _next = next ?? throw new ArgumentNullException(nameof(next));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
+            _rootUri = _options.GetRootUri();
+            _rootUrl = _rootUri.ToString().TrimEnd('/');
+            _sitemapPath = SitemapMiddlewareOptions.NormalizeRequestPath(_options.SitemapPath, nameof(_options.SitemapPath));
+            _robotsPath = SitemapMiddlewareOptions.NormalizeRequestPath(_options.RobotsPath, nameof(_options.RobotsPath));
         }
 
         /// <summary>
@@ -48,17 +67,55 @@ namespace Yasl.Net.SiteMapMiddleware
         /// <returns></returns>
         public async Task InvokeAsync(HttpContext context)
         {
-            if (context.Request.Path.Value?.ToLower() == "/sitemap.xml")
+            var requestPath = context.Request.Path.Value;
+            if (string.Equals(requestPath, _sitemapPath, StringComparison.OrdinalIgnoreCase))
             {
                 var urls = GenerateSitemapUrls();
                 var sitemapXml = GenerateSitemapXml(urls);
 
                 context.Response.ContentType = "application/xml";
+                SetCacheHeaders(context);
                 await context.Response.WriteAsync(sitemapXml);
                 return;
             }
 
+            if (_options.ServeRobotsTxt &&
+                string.Equals(requestPath, _robotsPath, StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.ContentType = "text/plain; charset=utf-8";
+                SetCacheHeaders(context);
+                await context.Response.WriteAsync(GenerateRobotsTxt());
+                return;
+            }
+
             await _next(context);
+        }
+
+        private void SetCacheHeaders(HttpContext context)
+        {
+            if (_options.CacheMaxAgeSeconds > 0)
+            {
+                context.Response.Headers["Cache-Control"] = $"public,max-age={_options.CacheMaxAgeSeconds}";
+            }
+        }
+
+        private string GenerateRobotsTxt()
+        {
+            var builder = new StringBuilder()
+                .AppendLine("User-agent: *");
+
+            foreach (var line in _options.RobotsTxtAdditionalLines)
+            {
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    builder.AppendLine(line.Trim());
+                }
+            }
+
+            return builder
+                .Append("Sitemap: ")
+                .Append(BuildAbsoluteUrl(_sitemapPath))
+                .ToString();
         }
 
         private List<SitemapUrl> GenerateSitemapUrls()
@@ -99,20 +156,20 @@ namespace Yasl.Net.SiteMapMiddleware
 
                         urls.Add(new SitemapUrl
                         {
-                            Location = $"{_rootUrl}/{url}",
+                            Location = BuildAbsoluteUrl(url),
                             LastModified = DateTime.UtcNow,
                             ChangeFrequency = attr?.ChangeFreq ?? "daily",
                             Priority = attr?.Priority ?? 0.5,
                             Images = imageAttributes.Select(img => new SitemapImage
                             {
-                                Location = img.ImageUrl.StartsWith("http") ? img.ImageUrl : $"{_rootUrl}/{img.ImageUrl.TrimStart('/')}",
+                                Location = BuildAbsoluteUrl(img.ImageUrl),
                                 Title = img.Title,
                                 Caption = img.Caption,
                                 License = img.License
                             }).ToList(),
                             Videos = videoAttributes.Select(video => new SitemapVideo
                             {
-                                ThumbnailUrl = video.ThumbnailUrl.StartsWith("http") ? video.ThumbnailUrl : $"{_rootUrl}/{video.ThumbnailUrl.TrimStart('/')}",
+                                ThumbnailUrl = BuildAbsoluteUrl(video.ThumbnailUrl),
                                 Title = video.Title,
                                 Description = video.Description,
                                 ContentUrl = video.ContentUrl,
@@ -143,6 +200,33 @@ namespace Yasl.Net.SiteMapMiddleware
             return $"{controllerName}/{actionName}";
         }
 
+        private string BuildAbsoluteUrl(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return _rootUrl;
+            }
+
+            var normalized = value.Trim();
+            if (normalized.StartsWith("/", StringComparison.Ordinal))
+            {
+                return new Uri(_rootUri, normalized.TrimStart('/')).ToString();
+            }
+
+            if (Uri.TryCreate(normalized, UriKind.Absolute, out var absolute))
+            {
+                if (!string.Equals(absolute.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(absolute.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException("Sitemap URLs must use http or https.", nameof(value));
+                }
+
+                return absolute.ToString();
+            }
+
+            return new Uri(_rootUri, normalized).ToString();
+        }
+
         private string GenerateSitemapXml(List<SitemapUrl> urls)
         {
             var xmlns = "http://www.sitemaps.org/schemas/sitemap/0.9";
@@ -160,7 +244,6 @@ namespace Yasl.Net.SiteMapMiddleware
                             new XElement(XName.Get("lastmod", xmlns), url.LastModified.ToString("yyyy-MM-dd")),
                             new XElement(XName.Get("changefreq", xmlns), url.ChangeFrequency),
                             new XElement(XName.Get("priority", xmlns), url.Priority.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)),
-                            // Изображения
                             url.Images.Select(img =>
                                 new XElement(XName.Get("image", imageXmlns),
                                     new XElement(XName.Get("loc", imageXmlns), img.Location),
@@ -169,7 +252,6 @@ namespace Yasl.Net.SiteMapMiddleware
                                     img.License != null ? new XElement(XName.Get("license", imageXmlns), img.License) : null
                                 )
                             ),
-                            // Видео
                             url.Videos.Select(video =>
                                 new XElement(XName.Get("video", videoXmlns),
                                     new XElement(XName.Get("thumbnail_loc", videoXmlns), video.ThumbnailUrl),
