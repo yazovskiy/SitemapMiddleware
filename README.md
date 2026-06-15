@@ -5,6 +5,7 @@ SitemapMiddleware is a middleware component for generating and serving sitemaps 
 ## Features
 
 - Automatically generates sitemaps for your web application.
+- Optionally serves robots.txt with a sitemap directive.
 - Easy integration with existing web frameworks.
 
 ## Installation
@@ -18,12 +19,31 @@ dotnet add package Yasl.Net.SitemapMiddleware
 ## Usage
 
 To use this middleware, add it to the request pipeline in the Startup.cs file:
+
 ```csharp
 public void Configure(IApplicationBuilder app, IHostingEnvironment env)
 {
-    app.UseMiddleware<SitemapMiddleware>("https://example.com");
+    app.UseSitemapMiddleware("https://example.com", options =>
+    {
+        options.ServeRobotsTxt = true;
+        options.RobotsTxtAdditionalLines.Add("Clean-param: etext");
+    });
+
     // other middlewares
 }
+```
+
+This serves:
+
+- `/sitemap.xml`
+- `/robots.txt` when `ServeRobotsTxt` is enabled
+
+The root URL must be an absolute `http` or `https` URL. File URLs and empty values are rejected.
+
+The legacy registration style is still supported:
+
+```csharp
+app.UseMiddleware<SitemapMiddleware>("https://example.com");
 ```
 
 ## Contributing

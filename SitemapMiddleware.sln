@@ -5,7 +5,11 @@ VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{704BBF9B-E783-4FA3-AC57-953439478FB8}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{211689C3-35E8-4F0E-A6C5-D3796FAD6F41}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SitemapMiddleware", "src\SitemapMiddleware\SitemapMiddleware.csproj", "{D69E7D42-1882-4D94-AD48-523A1A1D73C0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SitemapMiddleware.Tests", "tests\SitemapMiddleware.Tests\SitemapMiddleware.Tests.csproj", "{75866659-9396-4375-88BD-9FB009903A27}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,12 +21,17 @@ Global
 		{D69E7D42-1882-4D94-AD48-523A1A1D73C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D69E7D42-1882-4D94-AD48-523A1A1D73C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D69E7D42-1882-4D94-AD48-523A1A1D73C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75866659-9396-4375-88BD-9FB009903A27}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75866659-9396-4375-88BD-9FB009903A27}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75866659-9396-4375-88BD-9FB009903A27}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75866659-9396-4375-88BD-9FB009903A27}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D69E7D42-1882-4D94-AD48-523A1A1D73C0} = {704BBF9B-E783-4FA3-AC57-953439478FB8}
+		{75866659-9396-4375-88BD-9FB009903A27} = {211689C3-35E8-4F0E-A6C5-D3796FAD6F41}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {97AD131D-827C-491F-A66A-A5C9816B11A7}
